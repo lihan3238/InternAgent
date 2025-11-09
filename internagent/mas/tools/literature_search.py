@@ -371,7 +371,8 @@ class LiteratureSearch:
             "query": query,
             "limit": max_results,
             # "fields": "title,abstract,authors,year,journal,url,citationCount,doi",
-            "fields": "title,abstract,authors.name,year,journal.name,url,citationCount,doi"
+            # "fields": "title,abstract,authors.name,year,journal.name,url,citationCount,doi"
+            "fields": "title,abstract,authors.name,year,venue,url,citationCount,externalIds"
         }
         
         # Headers
@@ -405,8 +406,9 @@ class LiteratureSearch:
                                 authors=author_list,
                                 abstract=paper_data.get("abstract", ""),
                                 year=paper_data.get("year"),
-                                doi=paper_data.get("doi"),
-                                journal=paper_data.get("journal", {}).get("name") if paper_data.get("journal") else None,
+                                doi=paper_data.get("externalIds", {}).get("DOI"),
+                                # journal=paper_data.get("journal", {}).get("name") if paper_data.get("journal") else None,
+                                journal=paper_data.get("venue"),
                                 url=paper_data.get("url"),
                                 citations=paper_data.get("citationCount")
                             )
