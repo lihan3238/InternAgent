@@ -13,6 +13,8 @@ models:
     max_tokens: 4096
     temperature: 0.7
 
+experiment:
+  model: "anthropic/Qwen/QwQ-32B"  # Experiment model used for idea generation and evaluation
 # Memory Configuration
 memory:
   backend: "file_system"

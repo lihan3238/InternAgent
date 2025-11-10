@@ -1378,7 +1378,7 @@ def main(opts):
     np.random.seed(opts.random_seed)
     random.seed(opts.random_seed)
     
-    log_dir = os.getenv("TENSORBOARD_LOG_PATH", "/tensorboard_logs/")
+    log_dir = os.getenv("TENSORBOARD_LOG_PATH", "./tensorboard_logs/")
     # Setup TensorBoard writer
     # writer = SummaryWriter(log_dir=os.path.join(opts.out_dir, 'logs')) # Line 1071
     writer = SummaryWriter(log_dir) # Line 1071
