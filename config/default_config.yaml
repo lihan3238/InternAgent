@@ -68,3 +68,4 @@ workflow:
   top_ideas_count: 3
   top_ideas_evo: false
   max_concurrent_tasks: 5
+  human_in_the_loop: true

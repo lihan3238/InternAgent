@@ -13,6 +13,8 @@ agent routing based on workflow state.
 import asyncio
 import logging
 import time
+import os
+import json
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Callable
 
@@ -81,8 +83,13 @@ class OrchestrationAgent:
         self.active_sessions = {}
         self.session_callbacks = {}
 
-        logger.info(f"OrchestrationAgent initialized with max_iterations={self.max_iterations}, "
-                   f"top_ideas_count={self.top_ideas_count}")
+        # Human-in-the-loop control: when True, prompt user after method development
+        self.human_in_the_loop = workflow_config.get("human_in_the_loop", True)  # 方案阶段的人机交互
+
+        logger.info(
+            f"OrchestrationAgent initialized with max_iterations={self.max_iterations}, "
+            f"top_ideas_count={self.top_ideas_count}, human_in_the_loop={self.human_in_the_loop}"
+        )
 
     async def create_session(self,
                            goal_description: str,
@@ -760,6 +767,15 @@ class OrchestrationAgent:
 
                     logger.info(f"Method development completed for idea {idea.id} with method_details keys: {list(idea.method_details.keys())}")
 
+                    # If human-in-the-loop is enabled, prompt the user for optional modification方案部分的人机交互
+                    if self.human_in_the_loop:
+                        try:
+                            logger.info(f"Prompting for human feedback on idea {idea.id}")
+                            await self._prompt_and_add_human_feedback(session, idea)
+                        except Exception as e:
+                            logger.error(f"Error collecting human feedback for idea {idea.id}: {str(e)}")
+                            logger.info(f"Continuing without human feedback for idea {idea.id}")
+
                 except Exception as e:
                     logger.error(f"Error in method development for idea {idea.id}: {str(e)}")
                     # Set fallback method details for failed method development
@@ -834,6 +850,15 @@ class OrchestrationAgent:
                 if refined_method:
                     idea.refined_method_details = refined_method
                     logger.info(f"Updated idea {idea.id} with refined method")
+
+                    # If human-in-the-loop is enabled, prompt the user for optional modification
+                    if self.human_in_the_loop:
+                        try:
+                            logger.info(f"Prompting for human feedback on refined method for idea {idea.id}")
+                            await self._prompt_and_add_human_feedback(session, idea)
+                        except Exception as e:
+                            logger.error(f"Error collecting human feedback for refined idea {idea.id}: {str(e)}")
+                            logger.info(f"Continuing without human feedback for refined idea {idea.id}")
                 else:
                     logger.warning(f"No refined method produced for idea {idea.id}")
 
@@ -863,6 +888,107 @@ class OrchestrationAgent:
         # For safety, if we've been waiting too long or something goes wrong,
         # we should have a timeout or fallback mechanism
         pass
+
+    async def _prompt_and_add_human_feedback(self, session: WorkflowSession, idea: Idea) -> None:#方案部分的人机交互
+        """
+        Prompt the user on the console for optional modification feedback for a developed method.
+
+        This runs the blocking `input()` in a threadpool to avoid blocking the event loop.
+        If the user provides non-empty text, the feedback is added to the session via
+        `add_feedback` as a local feedback targeting the specific idea.
+
+        Args:
+            session: WorkflowSession containing the session id
+            idea: Idea object with method_details filled
+        """
+        # Prepare a concise summary for the user; coerce any non-str fields to strings
+        title_val = idea.method_details.get('title', '')
+        if not isinstance(title_val, str):
+            try:
+                title_val = json.dumps(title_val, ensure_ascii=False)
+            except Exception:
+                title_val = str(title_val)
+
+        desc_val = idea.method_details.get('description', '')
+        if not isinstance(desc_val, str):
+            try:
+                desc_val = json.dumps(desc_val, ensure_ascii=False)
+            except Exception:
+                desc_val = str(desc_val)
+
+        statement_val = idea.method_details.get('statement', '')
+        if not isinstance(statement_val, str):
+            try:
+                statement_val = json.dumps(statement_val, ensure_ascii=False)
+            except Exception:
+                statement_val = str(statement_val)
+
+        method_val = idea.method_details.get('method', '')
+        if not isinstance(method_val, str):
+            try:
+                method_val = json.dumps(method_val, ensure_ascii=False)
+            except Exception:
+                method_val = str(method_val)
+
+        method_preview_text = (method_val[:1000] + '...') if len(method_val) > 1000 else method_val
+
+        summary_lines = [
+            f"Idea ID: {idea.id}",
+            f"Title: {title_val}",
+            "Description:\n" + desc_val,
+            "Statement of novelty:\n" + statement_val,
+            "Method (truncated):\n" + method_preview_text,
+            "\nIf you want to add a modification/comment for this method, type it below and press Enter. Leave empty to skip."
+        ]
+        # Write a pending feedback file so non-interactive runs have a persistent artifact
+        try:
+            # Try to determine a sensible results/task directory from memory manager
+            task_dir = None
+            if hasattr(self.memory_manager, 'data_dir') and hasattr(self.memory_manager, 'task_name'):
+                task_dir = os.path.join(getattr(self.memory_manager, 'data_dir'), getattr(self.memory_manager, 'task_name'))
+                os.makedirs(task_dir, exist_ok=True)
+            else:
+                task_dir = os.getcwd()
+
+            pending_path = os.path.join(task_dir, f"pending_feedback_{session.id}_{idea.id}.json")
+            pending_payload = {
+                "session_id": session.id,
+                "idea_id": idea.id,
+                "title": title_val,
+                "description": desc_val,
+                "statement": statement_val,
+                "method_preview": (method_val[:2000] + '...') if len(method_val) > 2000 else method_val,
+                "created_at": datetime.now().isoformat(),
+            }
+
+            # Write file in executor to avoid blocking
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, lambda: open(pending_path, 'w', encoding='utf-8').write(json.dumps(pending_payload, indent=2, ensure_ascii=False)))
+            logger.info(f"Wrote pending feedback file: {pending_path}")
+        except Exception as e:
+            logger.error(f"Failed to write pending feedback file for idea {idea.id}: {e}")
+
+        logger.info("[start]Prompting user for method modification feedback:\n" + "\n".join(summary_lines))
+
+        prompt_text = "\n---\n" + "\n\n".join(summary_lines) + "\n---\nYour modification: "
+
+        loop = asyncio.get_running_loop()
+        # Run blocking input in executor
+        try:
+            user_input = await loop.run_in_executor(None, lambda: input(prompt_text))
+        except Exception as e:
+            # Non-interactive environment (EOFError or similar) -- just return
+            logger.info(f"Input prompt unavailable (non-interactive environment) for idea {idea.id}: {e}")
+            return
+
+        if user_input and user_input.strip():
+            feedback = {
+                "type": "local",
+                "content": [{"id": idea.id, "comment": user_input.strip()}]
+            }
+            # Use add_feedback to attach feedback with timestamp and proper storage
+            await self.add_feedback(session.id, feedback, target_idea_ids=[idea.id])
+            logger.info(f"Human feedback added for idea {idea.id}")##至此结束方案的人机交互
 
     # Helper methods
     def _get_agent(self, agent_type: str) -> Optional[BaseAgent]:

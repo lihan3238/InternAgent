@@ -1,8 +1,10 @@
 import os.path as osp
+import os
 import sys
 import json
 import shutil
 from datetime import datetime
+import asyncio
 
 from aider.coders import Coder
 from aider.models import Model
@@ -75,13 +77,162 @@ class IdeaGenerator:
                 self.status = full_status['state']
                 iterations = full_status['iterations_completed']
                 
-                if self.status == "awaiting_feedback":
-                    if self.args.offline_feedback:
-                        with open(self.args.offline_feedback, "r") as f:
-                            feedback = json.load(f)
-                        await self.interface.add_feedback(self.session_id, feedback)
-                        self.logger.info(f"Feedback added: {feedback}")
-                
+                if self.status == "awaiting_feedback":#idea需要人机交互
+                    self.logger.info("Session awaiting human feedback")
+                    # Idea-level human-in-the-loop: present top ideas with richer context,
+                    # write pending files for offline/manual review, then prompt the user.
+                    try:
+                        loop = asyncio.get_running_loop()
+                        top_ideas = await self.interface.get_top_ideas(self.session_id)
+
+                        # Write pending feedback files (one per idea) so non-interactive runs leave artifacts.
+                        try:
+                            task_dir = osp.join("results", self.args.task_name)
+                            os.makedirs(task_dir, exist_ok=True)
+                            pending_files = []
+                            for idea in top_ideas:
+                                pid = idea.get('id')
+                                pending_path = osp.join(task_dir, f"pending_feedback_{self.session_id}_{pid}.json")
+                                pending_payload = {
+                                    "session_id": self.session_id,
+                                    "idea_id": pid,
+                                                       "title": idea.get('title') or idea.get('name') or idea.get('text') or '',
+                                    "description": idea.get('description', ''),
+                                    "score": idea.get('score', None) or idea.get('overall_score', None),
+                                    "baseline_summary": idea.get('baseline_summary', '') or idea.get('baseline', ''),
+                                    "top_references": [ (r.get('title') if isinstance(r, dict) else str(r)) for r in (idea.get('references') or []) ][:5],
+                                    "created_at": datetime.now().isoformat()
+                                }
+                                try:
+                                    with open(pending_path, 'w', encoding='utf-8') as pf:
+                                        json.dump(pending_payload, pf, indent=2, ensure_ascii=False)
+                                    pending_files.append(pending_path)
+                                except Exception as e:
+                                    self.logger.error(f"Failed to write pending feedback for idea {pid}: {e}")
+
+                            if pending_files:
+                                self.logger.info(f"Wrote pending feedback files for ideas: {pending_files}")
+                        except Exception as e:
+                            self.logger.error(f"Error creating pending feedback files: {e}")
+
+                        def prompt_for_feedback():
+                            print("Session requires human feedback. Review the ideas below and enter modification comments.")
+                            print("Format: <index>: <comment>  (one per line). Leave blank line to finish.\n")
+
+                            for i, idea in enumerate(top_ideas):
+                                # title: prefer explicit title/name, fallback to text
+                                title = idea.get('title') or idea.get('name') or idea.get('text') or ''
+                                # description may be under different keys
+                                desc = idea.get('description') or idea.get('rationale') or ''
+                                score = idea.get('score', None) or idea.get('overall_score', None)
+                                baseline = idea.get('baseline_summary') or idea.get('baseline') or ''
+                                refs = []
+
+                                # Prefer explicit references list
+                                if isinstance(idea.get('references'), list) and idea.get('references'):
+                                    for r in idea.get('references')[:3]:
+                                        if isinstance(r, dict):
+                                            refs.append(r.get('title') or r.get('name') or r.get('paper_title') or '')
+                                        else:
+                                            refs.append(str(r)[:140])
+                                else:
+                                    # Fallback: try to extract titles from evidence
+                                    ev = idea.get('evidence') or idea.get('refine_evidence') or []
+                                    for e in ev[:3]:
+                                        if isinstance(e, dict):
+                                            refs.append(e.get('title') or e.get('paper') or (e.get('content') or '')[:140])
+                                        else:
+                                            refs.append(str(e)[:140])
+
+                                print(f"[{i}] id:{idea.get('id', '')}  title: {title[:120]}  score: {score}")
+                                if baseline:
+                                    print(f"    baseline: {baseline[:300]}")
+                                if desc:
+                                    print(f"    desc: {desc[:400]}")
+                                if refs:
+                                    print(f"    top refs: {', '.join([r for r in refs if r])}")
+                                print("")
+
+                            print("\nEnter comments (or press Enter twice to skip):")
+
+                            lines = []
+                            while True:
+                                try:
+                                    ln = input()
+                                except EOFError:
+                                    break
+                                if not ln.strip():
+                                    break
+                                lines.append(ln.rstrip())
+                            return lines
+
+                        user_lines = await loop.run_in_executor(None, prompt_for_feedback)
+
+                        if user_lines:
+                            # Parse lines of the form 'index: comment'
+                            comments = []
+                            for line in user_lines:
+                                if ':' in line:
+                                    idx_str, comment = line.split(':', 1)
+                                    try:
+                                        idx = int(idx_str.strip())
+                                    except ValueError:
+                                        continue
+                                    if 0 <= idx < len(top_ideas):
+                                        comments.append({
+                                            'id': top_ideas[idx].get('id'),
+                                            'comment': comment.strip()
+                                        })
+
+                            if comments:
+                                feedback = {
+                                    'type': 'local',
+                                    'content': comments
+                                }
+                                await self.interface.add_feedback(self.session_id, feedback)
+                                self.logger.info(f"Human feedback added for session {self.session_id}: {feedback}")
+                            else:
+                                # If lines were provided but not parseable as local comments,
+                                # send them as a global feedback blob
+                                joined = "\n".join(user_lines)
+                                feedback = {'type': 'global', 'content': joined}
+                                await self.interface.add_feedback(self.session_id, feedback)
+                                self.logger.info(f"Human global feedback added for session {self.session_id}")
+
+                        else:
+                            # No interactive input provided - fall back to configured offline feedback
+                            if self.args.offline_feedback and osp.exists(self.args.offline_feedback):
+                                with open(self.args.offline_feedback, "r") as f:
+                                    feedback = json.load(f)
+                                await self.interface.add_feedback(self.session_id, feedback)
+                                self.logger.info(f"Offline feedback applied: {self.args.offline_feedback}")
+                            else:
+                                self.logger.info("No human feedback provided and no offline feedback file available; continuing without feedback")
+
+                    except Exception as e:
+                        # If anything goes wrong with interactive prompting, fall back to offline feedback if available
+                        self.logger.error(f"Error collecting human feedback interactively: {e}")
+                        if self.args.offline_feedback and osp.exists(self.args.offline_feedback):
+                            try:
+                                with open(self.args.offline_feedback, "r") as f:
+                                    feedback = json.load(f)
+                                await self.interface.add_feedback(self.session_id, feedback)
+                                self.logger.info(f"Offline feedback applied after interactive failure: {self.args.offline_feedback}")
+                            except Exception as e2:
+                                self.logger.error(f"Failed to apply offline feedback: {e2}")
+
+                    except Exception as e:
+                        # If anything goes wrong with interactive prompting, fall back to offline feedback if available
+                        self.logger.error(f"Error collecting human feedback interactively: {e}")
+                        if self.args.offline_feedback and osp.exists(self.args.offline_feedback):
+                            try:
+                                with open(self.args.offline_feedback, "r") as f:
+                                    feedback = json.load(f)
+                                await self.interface.add_feedback(self.session_id, feedback)
+                                self.logger.info(f"Offline feedback applied after interactive failure: {self.args.offline_feedback}")
+                            except Exception as e2:
+                                self.logger.error(f"Failed to apply offline feedback: {e2}")
+                #idea的人机交互结束
                 elif self.status == "completed":
                     self.logger.info("Idea generation completed")
                     break
