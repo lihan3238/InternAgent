@@ -5,6 +5,7 @@ import json
 import shutil
 from datetime import datetime
 import asyncio
+import re
 
 from aider.coders import Coder
 from aider.models import Model
@@ -315,6 +316,72 @@ class ExperimentRunner:
                 'method': method
             }
 
+    def _parse_final_info(self, final_info_path):
+        """Read final_info.json and keep only scalar metrics."""
+        try:
+            with open(final_info_path, "r", encoding="utf-8") as f:
+                payload = json.load(f)
+        except Exception as exc:
+            self.logger.warning(f"Could not read final_info at {final_info_path}: {exc}")
+            return {}
+
+        metrics = {}
+        for key, value in payload.items():
+            if isinstance(value, dict) and "means" in value:
+                metrics[key] = value["means"]
+            else:
+                metrics[key] = value
+        return metrics
+
+    def _read_tail(self, file_path, limit=1200):
+        """Return tail snippet of a text file for quick diagnostics."""
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                content = f.read()
+        except Exception:
+            return ""
+        if len(content) <= limit:
+            return content
+        return content[-limit:]
+
+    def _collect_run_history(self, artifact_dir):
+        """Collect baseline metrics and run-by-run history for downstream analysis."""
+        history = {
+            "baseline": {},
+            "runs": []
+        }
+        if not artifact_dir or not osp.exists(artifact_dir):
+            return history
+
+        baseline_file = osp.join(artifact_dir, "run_0", "final_info.json")
+        if osp.exists(baseline_file):
+            history["baseline"] = self._parse_final_info(baseline_file)
+
+        run_dirs = [
+            entry for entry in os.listdir(artifact_dir)
+            if re.match(r"run_\\d+", entry)
+        ]
+        for run_dir in sorted(run_dirs, key=lambda x: int(x.split("_")[1])):
+            if run_dir == "run_0":
+                continue
+            run_path = osp.join(artifact_dir, run_dir)
+            run_entry = {
+                "run_id": run_dir,
+                "status": "unknown"
+            }
+            final_path = osp.join(run_path, "final_info.json")
+            if osp.exists(final_path):
+                run_entry["status"] = "success"
+                run_entry["metrics"] = self._parse_final_info(final_path)
+                run_entry["final_info_path"] = final_path
+            else:
+                run_entry["status"] = "failed"
+                traceback_path = osp.join(run_path, "traceback.log")
+                if osp.exists(traceback_path):
+                    run_entry["traceback"] = self._read_tail(traceback_path)
+            history["runs"].append(run_entry)
+        return history
+
     def setup_experiment_folder(self, base_dir, results_dir, idea):
         """Create experiment folder and setup files"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -347,6 +414,13 @@ class ExperimentRunner:
             else:
                 print(f"Warning: Could not copy baseline experiment.py to run_0")
         
+        # Copy plot.py if it exists in base directory复制绘图功能文件
+        # plot_src = osp.join(base_dir, "plot.py")
+        # plot_dst = osp.join(folder_name, "plot.py")
+        # if osp.exists(plot_src) and not osp.exists(plot_dst):
+        #     shutil.copy2(plot_src, plot_dst)
+        #     print(f"Copied plot.py to {plot_dst}")
+        
         # Create notes file
         notes_path = osp.join(folder_name, "notes.txt")
         with open(notes_path, "w") as f:
@@ -377,7 +451,16 @@ class ExperimentRunner:
     
     def run_aider_experiment(self, base_dir, results_dir, idea):
         """Run experiment using Aider backend"""
+        summary = {
+            "success": False,
+            "artifact_dir": None,
+            "idea_label": None,
+            "error": None,
+        }
+
         folder_name, idea_name = self.setup_experiment_folder(base_dir, results_dir, idea)
+        summary["artifact_dir"] = folder_name
+        summary["idea_label"] = idea_name
         
         # Load baseline results
         baseline_path = osp.join(base_dir, "run_0", "final_info.json")
@@ -394,6 +477,13 @@ class ExperimentRunner:
             
             exp_file = osp.join(folder_name, "experiment.py")
             notes_file = osp.join(folder_name, "notes.txt")
+            plot_file = osp.join(folder_name, "plot.py")
+            
+            # Include plot.py in aider's file list if it exists补充绘图功能文件
+            fnames = [exp_file, notes_file]
+            if osp.exists(plot_file):
+                fnames.append(plot_file)
+                self.logger.info(f"Including plot.py in aider's editable files")
             
             io = InputOutput(
                 yes=True,
@@ -408,7 +498,7 @@ class ExperimentRunner:
             main_model = Model(experiment_model)
             coder = Coder.create(
                 main_model=main_model,
-                fnames=[exp_file, notes_file],
+                fnames=fnames,
                 io=io,
                 stream=True,  # Enable streaming to see aider output
                 use_git=False,
@@ -416,13 +506,15 @@ class ExperimentRunner:
             )
             
             success = perform_experiments_aider(idea, folder_name, coder, baseline_results)
+            summary["success"] = bool(success)
             
             self.logger.info(f"Aider experiment {'succeeded' if success else 'failed'}: {idea_name}")
-            return success
+            return summary
             
         except Exception as e:
             self.logger.error(f"Aider experiment error: {str(e)}")
-            return False
+            summary["error"] = str(e)
+            return summary
         finally:
             self.restore_logging(original_stdout, original_stderr, log_file)
     
@@ -469,17 +561,28 @@ class ExperimentRunner:
             
             try:
                 if self.backend == "aider":
-                    success = self.run_aider_experiment(base_dir, results_dir, idea)
+                    execution_result = self.run_aider_experiment(base_dir, results_dir, idea)
                 elif self.backend == "openhands":
                     raise NotImplementedError("OpenHands backend is not implemented in this version.")
                     # success = self.run_openhands_experiment(base_dir, results_dir, idea)
                 else:
                     raise ValueError(f"Unknown backend: {self.backend}")
                 
-                results.append({
+                success = execution_result.get("success", False) if self.backend == "aider" else False
+                artifact_dir = execution_result.get("artifact_dir") if self.backend == "aider" else None
+                run_history = self._collect_run_history(artifact_dir)
+
+                result_entry = {
                     'idea_name': idea_name,
-                    'success': success
-                })
+                    'success': success,
+                    'artifact_dir': artifact_dir,
+                    'run_history': run_history,
+                    'idea_details': idea_info,
+                }
+                if execution_result.get("error"):
+                    result_entry['error'] = execution_result['error']
+                
+                results.append(result_entry)
                 
             except Exception as e:
                 self.logger.error(f"Failed to run experiment for {idea_name}: {str(e)}")

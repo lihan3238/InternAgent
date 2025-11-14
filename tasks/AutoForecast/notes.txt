@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Name: Enhanced Hybrid Weather-Aware Attention Forecasting (EHWAF)
 # Title: Enhanced Hybrid Attention Mechanism for Weather-Responsive Building Energy Consumption Forecasting
 # Description: The Enhanced Hybrid Weather-Aware Attention Forecasting (EHWAF) method introduces a refined hybrid attention mechanism that explicitly integrates weather conditions with spatial and temporal dynamics in building energy consumption forecasting. Leveraging a transformer architecture, EHWAF aims to improve forecasting accuracy by providing a statistically significant enhancement over traditional models, focusing particularly on variable weather patterns. This method emphasizes clear mathematical formulations and detailed algorithmic specifications for practical implementation.
@@ -64,3 +65,71 @@ FUNCTION EHWAF_Forecast(X, sequence_length, prediction_length)
 ### Implementation Feasibility
 EHWAF can be implemented using frameworks like PyTorch or TensorFlow. The method's modular design allows easy adjustments to attention mechanisms and transformer configurations. Well-defined data flow ensures clarity in implementation, and the reliance on established deep learning principles facilitates efficient computation.
 ## Run 0: Baseline
+=======
+# Name: Enhanced Hybrid Weather-Aware Attention Forecasting (EHWAF)
+# Title: Enhanced Hybrid Attention Mechanism for Weather-Responsive Building Energy Consumption Forecasting
+# Description: The Enhanced Hybrid Weather-Aware Attention Forecasting (EHWAF) method introduces a refined hybrid attention mechanism that explicitly integrates weather conditions with spatial and temporal dynamics in building energy consumption forecasting. Leveraging a transformer architecture, EHWAF aims to improve forecasting accuracy by providing a statistically significant enhancement over traditional models, focusing particularly on variable weather patterns. This method emphasizes clear mathematical formulations and detailed algorithmic specifications for practical implementation.
+# Method: ### System Architecture
+The EHWAF system architecture comprises the following key components:
+1. **Input Module**: Preprocesses time series data, extracting features related to energy consumption, weather conditions, and temporal patterns. The input is structured as a tensor of shape (B, L, D), where B is the batch size, L is the sequence length, and D is the number of features.
+2. **Feature Embedding**: Transforms input features into a higher-dimensional space using a linear transformation, yielding an embedded representation of shape (B, L, d_model).
+3. **Positional Encoding**: Adds positional encodings to the embedded features to retain temporal information, resulting in an output of shape (B, L, d_model).
+4. **Hybrid Weather-Aware Attention Mechanism**: This module computes spatial and temporal attention, specifically incorporating weather conditions into the attention mechanisms:
+   - **Spatial Attention Calculation**: The spatial attention weights are computed as follows:
+   
+   \[ A_s = \text{softmax}(\frac{Q_s K_s^T}{\sqrt{d_k}}) \]
+  where \( Q_s \) is derived from embedding features and weather conditions, and \( K_s \) is derived from energy consumption features. This ensures that the spatial relationships are sensitive to weather variances.
+   
+   - **Temporal Attention Calculation**: The temporal attention is computed using:
+   
+   \[ A_t = \text{softmax}(\frac{Q_t K_t^T}{\sqrt{d_k}}) \]
+   where \( Q_t \) combines outputs from the spatial attention and weather conditions, and \( K_t \) represents the temporal dependencies from prior outputs. This methodology clarifies how spatial outputs inform temporal dynamics.
+5. **Combined Attention Output**: The final representation is derived as:
+   
+   \[ Z = (A_s \odot A_t) \cdot X \]
+   where \( \odot \) signifies element-wise multiplication, ensuring interaction between attention outputs and input tensor features.
+6. **Transformer Encoder**: The context-aware features are processed through transformer encoder layers to learn complex patterns.
+7. **Output Module**: The final layer averages the outputs from the transformer encoder and applies a linear transformation for predictions, yielding predictions of shape (B, P).
+
+### Mathematical Formulations
+#### Notation
+- Let \( X \in \mathbb{R}^{B \times L \times D} \) be the input tensor.
+- Let \( d_{model} \) be the dimensionality of feature embeddings.
+- Let \( P \) be the prediction horizon.
+- Let \( Y \in \mathbb{R}^{B \times P} \) be the output tensor.
+- Let \( d_k \) be defined as the dimension used for query and key matrices in attention calculations.
+
+### Algorithmic Workflow
+1. **Input Preprocessing**: Normalize and split time series data into sequences.
+2. **Feature Embedding**: Transform features into embeddings.
+3. **Positional Encoding**: Add positional information to embedded features.
+4. **Compute Hybrid Weather-Aware Attention**: Calculate spatial and temporal attention outputs, utilizing weather data.
+5. **Transformer Encoding**: Pass combined attention output through transformer encoder layers.
+6. **Prediction Generation**: Average encoder output and apply the final linear layer for predictions.
+
+### Pseudocode
+```plaintext
+FUNCTION EHWAF_Forecast(X, sequence_length, prediction_length)
+    // Step 1: Feature Embedding
+    embedded_features = LinearTransform(X)
+    // Step 2: Add Positional Encoding
+    positional_encoded = AddPositionalEncoding(embedded_features)
+    // Step 3: Compute Hybrid Weather-Aware Attention
+    spatial_attention_output = ComputeSpatialAttention(positional_encoded)
+    temporal_attention_output = ComputeTemporalAttention(spatial_attention_output)
+    combined_output = spatial_attention_output * temporal_attention_output
+    // Step 4: Transformer Encoding
+    transformer_output = TransformerEncoder(combined_output)
+    // Step 5: Generate Predictions
+    predictions = LinearLayer(Average(transformer_output))
+    RETURN predictions
+```
+
+### Time and Space Complexity
+- **Time Complexity**: The hybrid attention mechanism operates in \( O(B \times L^2 \times D) \).
+- **Space Complexity**: The method requires \( O(B \times L \times d_{model}) \) for embeddings and attention outputs.
+
+### Implementation Feasibility
+EHWAF can be implemented using frameworks like PyTorch or TensorFlow. The method's modular design allows easy adjustments to attention mechanisms and transformer configurations. Well-defined data flow ensures clarity in implementation, and the reliance on established deep learning principles facilitates efficient computation.
+## Run 0: Baseline
+>>>>>>> ssy

@@ -11,8 +11,16 @@ For reference, the baseline results are as follows:
 
 {baseline_results}
 
-Then, you need to implement code based on your plan. After you complete each change, we will run the command `python experiment.py --out_dir=run_i' where i is the run number and evaluate the results.
-YOUR PROPOSED CHANGE MUST USE THIS COMMAND FORMAT, DO NOT ADD ADDITIONAL COMMAND LINE ARGS.
+Then, you need to implement code based on your plan. After you complete each change, we will run the command `bash launcher.sh run_i` where i is the run number. This command will:
+1. Run `experiment.py` to execute the experiment
+2. Automatically run `plot.py` to generate visualizations if the experiment succeeds
+
+**Important**: You can modify both `experiment.py` and `plot.py` files:
+- `experiment.py`: Contains the main experiment logic, model training, and evaluation
+- `plot.py`: Contains visualization code that reads results from `experiment.py` and generates plots
+- Both files are available for editing, and `plot.py` will be automatically executed after successful experiments
+
+YOUR PROPOSED CHANGE MUST USE THIS COMMAND FORMAT (`bash launcher.sh run_i`), DO NOT ADD ADDITIONAL COMMAND LINE ARGS.
 You can then implement the next thing on your list.
 
 Any modifications to `argparse` parameters (new/updated) **must enforce the improved implementation as the default behavior** unless explicitly designed as optional. Specifically:  Set `default=<revised_value>` for all altered arguments to ensure the enhanced logic activates automatically without CLI flags. Ensure the improved functionality should be the default experience without requiring users to specify additional command-line parameters.
@@ -77,4 +85,35 @@ We will run the command `bash launcher.sh {NEXT_RUN_NUM}` to execute your next e
 YOUR PROPOSED CHANGE MUST USE THIS COMMAND FORMAT, DO NOT ADD ADDITIONAL COMMAND LINE ARGS.
 
 If you believe you have completed all necessary experiments and found the optimal solution, respond with 'ALL_COMPLETED'.
+"""
+
+
+EXPERIMENT_SUMMARY_PROMPT = """
+You are the “Experiment Results Analysis Agent”. Use the context below to craft a rigorous, decision-ready summary and plan.
+
+【Context JSON】
+{CONTEXT_JSON}
+
+Produce a JSON object that satisfies the provided schema and the following quality bar:
+1) `idea_analyses`: for every entry in `experiment_runs`, craft a standalone section with:
+   - `idea_name`
+   - `plan_brief`: 2 sentences describing intended method/baseline comparison plus one explicit weakness/limitation that surfaced (e.g., capacity gap of HDPMN-SLS).
+   - `run_analyses`: using `run_history.timeline`, provide one object per run (baseline + each run_id) covering variables touched, metrics vs. baseline, and success/failure diagnosis.
+   - `idea_takeaways`: 2–3 sentences synthesizing what was learned for this idea, emphasizing both strengths and weak points.
+   - `idea_next_steps`: 2–4 concrete follow-ups scoped to this idea.
+2) `core_idea`: distill the main experimental insight in a single, punchy sentence that highlights what changed vs. baseline.
+3) `failure_overview`: 2 sentences synthesizing why the major failures happened (e.g., attention–GNN fusion instability, shallow hierarchy definitions).
+4) `failures_and_causes`: 3–5 bullet-style strings of the form “Failure — root cause / evidence”.
+5) `result_analysis`: 2–3 compact paragraphs covering (a) what worked, (b) what regressed, and (c) the likely causes, explicitly referencing idea/run names when possible.
+6) `literature_links`: cite up to 3 relevant papers, blog posts, or prior work (title or URL). If none, return an empty list.
+7) `next_plan`: 
+   - `objective`: one crisp outcome statement.
+   - `milestones`: 3–5 deliverables expressed as “Milestone — success signal”.
+   - `experiments`: list the next key experiments; each entry should mention the variable(s), control/baseline, and expected observation.
+   - `metrics`: name at least three concrete metrics (e.g., RMSE, MAE, SMAPE) with target direction or thresholds.
+   - `risks`: enumerate the top risks plus explicit mitigation ideas.
+8) `improvement_directions`: provide 3–6 actionable, testable directives (“Do X in order to Y; validate via Z”).
+9) `summary_markdown`: an English Markdown report with sections titled **Core Idea**, **Per-Idea Highlights**, **Failure Summary**, **Next Plan & Metrics**, and **Risks & Mitigations** so it reads like a research plan.
+
+Return only the JSON response that conforms to the schema.
 """

@@ -4,3 +4,4 @@
     "domain": "ai for building energy consumption forecasting",
     "background": "Goal: maximize forecasting metrics (RMSE/MAE/SMAPE, multi-horizon accuracy) rather than pipeline micro-optimizations.\nStrategies: improve model capacity and inductive biases (Temporal Fusion Transformer, Informer, hybrid conv+attention), use appropriate losses (quantile/MAE-weighted), add exogenous/time embeddings and hierarchical multi-task heads for multi-horizon forecasting.\nEvaluation: use rolling-origin validation, report multi-horizon metrics, and track calibration/uncertainty (quantiles).\nPractical: keep caching and DataLoader tuning as productivity aids, but prioritize architecture search, regularization, ensembling, and robust hyperparameter tuning to improve final metrics."
 }
+

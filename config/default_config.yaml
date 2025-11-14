@@ -62,6 +62,11 @@ agents:
   survey:
     model_provider: "default"
 
+  # Experiment Summary Agent
+  experiment_summary:
+    model_provider: "default"
+    temperature: 0.3
+
 # Workflow Configuration
 workflow:
   max_iterations: 2

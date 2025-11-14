@@ -94,6 +94,17 @@ def run_experiment(folder_name, run_num, timeout=27000):
     experiment_dst = osp.join(run_dir, "experiment.py")
     shutil.copy(experiment_src, experiment_dst)
 
+    
+    # Copy plot.py if it exists in the experiment folder
+    # plot_src = osp.join(cwd, "plot.py")
+    # if osp.exists(plot_src):
+    #     plot_dst = osp.join(run_dir, "plot.py")
+    #     shutil.copy(plot_src, plot_dst)
+    #     print(f"[INFO] Copied plot.py to {plot_dst}")plot复制功能文件
+    plot_dst = osp.join(run_dir, "plot.py")
+    shutil.copy(plot_dst, plot_dst)
+    print(f"[INFO] Copied plot.py to {plot_dst}")
+
     # LAUNCH COMMAND
     command = ["bash", "launcher.sh", f"run_{run_num}"]
     try:
@@ -102,6 +113,27 @@ def run_experiment(folder_name, run_num, timeout=27000):
         )
 
         if os.path.exists(osp.join(cwd, f"run_{run_num}", "final_info.json")):
+            # Experiment succeeded, now run plot.py if it exists绘图部分修正
+            plot_py_path = osp.join(cwd, "plot.py")
+            run_plot_py_path = osp.join(cwd, f"run_{run_num}", "plot.py")
+            if osp.exists(plot_py_path) or osp.exists(run_plot_py_path):
+                plot_script = run_plot_py_path if osp.exists(run_plot_py_path) else plot_py_path
+                print(f"[INFO] Running visualization with {plot_script}...")
+                plot_result = subprocess.run(
+                    ["python", plot_script, "--out_dir", f"run_{run_num}"],
+                    cwd=cwd,
+                    stderr=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    text=True,
+                    timeout=300  # 5 minute timeout for visualization
+                )
+                if plot_result.returncode == 0:
+                    print(f"[INFO] Visualization completed successfully")
+                else:
+                    print(f"[WARNING] Visualization failed (return code {plot_result.returncode}), but experiment succeeded")
+                    if plot_result.stderr:
+                        print(f"[WARNING] Plot error: {plot_result.stderr[:500]}")  # Print first 500 chars
+            # 至此
             results = {}
 
             baseline_path = osp.join(cwd, "run_0", "final_info.json")
