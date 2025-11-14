@@ -1,0 +1,76 @@
+# Default configuration for InternAgent
+# This file is loaded when no specific config path is provided
+
+version: "1.0.0"
+
+# Model Providers Configuration
+models:
+  default_provider: "openai"
+
+  openai:
+    model_name: "gpt-4o-mini"
+    api_key: ""  # Set via environment variable OPENAI_API_KEY
+    max_tokens: 4096
+    temperature: 0.7
+
+experiment:
+  model: "anthropic/Qwen/QwQ-32B"  # Experiment model used for idea generation and evaluation
+# Memory Configuration
+memory:
+  backend: "file_system"
+  file_dir: "results"
+
+# Agent Configuration
+agents:
+  # Idea Generation Agent
+  generation:
+    model_provider: "default"
+    generation_count: 5
+    creativity: 0.7
+    do_survey: false
+
+  # Reflection Agent
+  reflection:
+    model_provider: "default"
+    detail_level: "medium"
+
+  # Evolution Agent
+  evolution:
+    model_provider: "default"
+    creativity_level: 0.6
+
+  # Method Development Agent
+  method_development:
+    model_provider: "openai"
+    model_name: "gpt-4"
+
+  # Refinement Agent
+  refinement:
+    model_provider: "openai"
+    model_name: "gpt-4"
+
+  # Ranking Agent
+  ranking:
+    model_provider: "default"
+
+  # Scholar Agent
+  scholar:
+    model_provider: "default"
+    search_depth: "moderate"
+
+  # Survey Agent
+  survey:
+    model_provider: "default"
+
+  # Experiment Summary Agent
+  experiment_summary:
+    model_provider: "default"
+    temperature: 0.3
+
+# Workflow Configuration
+workflow:
+  max_iterations: 2
+  top_ideas_count: 3
+  top_ideas_evo: false
+  max_concurrent_tasks: 5
+  human_in_the_loop: true

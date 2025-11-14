@@ -1,0 +1,72 @@
+# Default configuration for InternAgent
+# This file is loaded when no specific config path is provided
+
+version: "1.0.0"
+
+# Model Providers Configuration
+models:
+  default_provider: "interns1"
+  interns1:
+    model_name: "intern-s1"
+    api_key: "" # Set via environment variable DS_API_KEY
+    max_tokens: 4096
+    temperature: 0.7
+
+  openai:
+    model_name: "gpt-4o-mini"
+    api_key: ""  # Set via environment variable OPENAI_API_KEY
+    max_tokens: 4096
+    temperature: 0.7
+
+# Memory Configuration
+memory:
+  backend: "file_system"
+  file_dir: "results"
+
+# Agent Configuration
+agents:
+  # Idea Generation Agent
+  generation:
+    model_provider: "interns1"
+    generation_count: 5
+    creativity: 0.7
+    do_survey: true
+
+  # Reflection Agent
+  reflection:
+    model_provider: "interns1"
+    detail_level: "medium"
+
+  # Evolution Agent
+  evolution:
+    model_provider: "interns1"
+    creativity_level: 0.6
+
+  # Method Development Agent
+  method_development:
+    model_provider: "interns1"
+
+
+  # Refinement Agent
+  refinement:
+    model_provider: "interns1"
+
+  # Ranking Agent
+  ranking:
+    model_provider: "interns1"
+
+  # Scholar Agent
+  scholar:
+    model_provider: "interns1"
+    search_depth: "moderate"
+
+  # Survey Agent
+  survey:
+    model_provider: "interns1"
+
+# Workflow Configuration
+workflow:
+  max_iterations: 2
+  top_ideas_count: 3
+  top_ideas_evo: true
+  max_concurrent_tasks: 5
