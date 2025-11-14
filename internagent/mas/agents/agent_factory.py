@@ -20,12 +20,10 @@ from .reflection_agent import ReflectionAgent
 from .ranking_agent import RankingAgent
 
 from .method_development_agent import MethodDevelopmentAgent
-<<<<<<< HEAD
-from .refinement_agent import RefinementAgent
-=======
+
 from .refinement_agent import RefinementAgent
 from .experiment_summary_agent import ExperimentSummaryAgent
->>>>>>> ssy
+
 
 logger = logging.getLogger(__name__)
 
@@ -39,18 +37,7 @@ class AgentFactory:
     """
     
     # Registry of agent types
-<<<<<<< HEAD
-    _agent_registry: Dict[str, Type[BaseAgent]] = {
-        "generation": GenerationAgent,
-        "reflection": ReflectionAgent,
-        "evolution": EvolutionAgent,
-        "method_development": MethodDevelopmentAgent,
-        "refinement": RefinementAgent,
-        "ranking": RankingAgent,
-        "survey": SurveyAgent,
-        "scholar": ScholarAgent,
-    }
-=======
+
     _agent_registry: Dict[str, Type[BaseAgent]] = {
         "generation": GenerationAgent,
         "reflection": ReflectionAgent,
@@ -62,8 +49,7 @@ class AgentFactory:
         "scholar": ScholarAgent,
         "experiment_summary": ExperimentSummaryAgent,
     }
->>>>>>> ssy
-    
+
     # Cache of created agent instances
     _agent_cache: Dict[str, BaseAgent] = {}
     
