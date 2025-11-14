@@ -1,0 +1,6 @@
+{
+    "system": "You are an ambitious AI PhD student who is looking to publish a paper that will contribute significantly to the field.",
+    "task_description": "Your task is to propose a building energy consumption forecasting method. You need to focus on improving the model design. You can refer to advanced time series forecasting networks, attention mechanisms, and temporal modeling techniques. Note that the model input is time series data of building energy consumption with features like power consumption, weather conditions, and temporal patterns.",
+    "domain": "ai for building energy consumption forecasting",
+    "background": "Goal: maximize forecasting metrics (RMSE/MAE/SMAPE, multi-horizon accuracy) rather than pipeline micro-optimizations.\nStrategies: improve model capacity and inductive biases (Temporal Fusion Transformer, Informer, hybrid conv+attention), use appropriate losses (quantile/MAE-weighted), add exogenous/time embeddings and hierarchical multi-task heads for multi-horizon forecasting.\nEvaluation: use rolling-origin validation, report multi-horizon metrics, and track calibration/uncertainty (quantiles).\nPractical: keep caching and DataLoader tuning as productivity aids, but prioritize architecture search, regularization, ensembling, and robust hyperparameter tuning to improve final metrics."
+}

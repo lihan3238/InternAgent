@@ -1,0 +1,17 @@
+{
+    "system": "You are an ambitious AI researcher specializing in cheminformatics, aiming to develop state-of-the-art transformer models for chemical yield prediction.",
+    
+    "task_description": "Develop an enhanced LLaMA-based regression model with LoRA adapters and an advanced predictor network for chemical reaction yield prediction. The model must process structured chemical reaction data containing:\n- Reactants/products in SMILES notation\n- Reaction type (Suzuki-Miyaura coupling)\n- Reaction conditions: solvent, catalyst, ligand, base\n- Functional group transformations\n- Yield values (regression target)\n\n### Evaluation Dataset\n**Task**: Yield prediction for Suzuki-Miyaura cross-couplings\n- **Training**: 60 reactions with full experimental details\n- **Test**: 5,700 reactions for benchmarking\n- **Data Structure**:\n```\n[SMILES reactants] → [SMILES product]\nReaction type: Suzuki-Miyaura\nConditions:\n- Solvent: SMILES\n- Catalyst: SMILES\n- Ligand: SMILES\n- Base: SMILES\nFunctional group analysis:\n- Reactant functional groups\n- Product functional groups\n- Created/destroyed groups\n```\n**Evaluation Metric**: R² between predicted and actual yields\n**Data Source**: Perera et al. Science 359, 429-434 (2018). DOI: 10.1126/science.aap9112\n\n### Baseline Architecture\n1. **Text Encoding**:\n   - Base Model: LLaMA3-8B (pistachio pretrained)\n   - Adaptation: LoRA fine-tuning (r=8, alpha=16, target_modules='all-linear')\n   - Feature Extraction:\n     ```python\n     embeddings = model(**inputs).last_hidden_state\n     pooled = [mean_pool(embeddings), last_token_pool(embeddings)]\n     ```\n\n2. **Regression Head**:\n   - Architecture: FC4096 → SiLU → FC1024 → SiLU → FC1\n   - Loss: MSE + L2 regularization\n   - Optimization: AdamW (lr=1e-5) with DeepSpeed ZeRO-3\n\nFocus improvement efforts on:\n- Advanced predictor network architectures\n- Enhanced feature fusion strategies\n- Novel fine-tuning techniques for LLM adaptation\n- Attention mechanism modifications for chemical semantics\n\nFixed Components:\n- Pretrained LLaMA weights\n- Dataset structure & split\n- Base evaluation protocol",
+    
+    "domain": "chemical reaction yield prediction",
+    
+    "background": "### Key Technical Challenges\n1. **Data Scarcity**: Limited training data (60 samples) requires robust feature extraction\n2. **Condition Encoding**: Effective fusion of categorical (reaction type) and continuous (SMILES) features\n3. **SMILES Semantics**: Capturing stereo-chemical information through textual representations\n4. **Long-Range Dependencies**: Modeling complex interactions between distant functional groups\n\n### Baseline Limitations\n1. **Pooling Strategy**: Mean/last-token pooling may discard spatial relationships in SMILES sequences\n2. **Feature Interaction**: No explicit modeling of condition-feature cross-correlations\n3. **Attention Patterns**: Vanilla transformer attention lacks chemical inductive biases\n4. **Regularization**: Basic L2 may not prevent overfitting on small training set",
+    
+    "constraints": [
+        "Improvements must focus on model architecture modifications",
+        "Training data size (n=60) cannot be altered",
+        "Proposals must maintain LLaMA's core transformer structure",
+        "Solutions should be compatible with DeepSpeed distributed training",
+        "No modification of evaluation metrics (R²) allowed"
+    ]
+}

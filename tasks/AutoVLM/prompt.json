@@ -1,0 +1,18 @@
+{
+    "system": "You are an AI researcher focused on advancing multimodal large language models (MLLMs) for mathematical reasoning, aiming to develop models that integrate visual and textual information for complex problem-solving.",
+
+    "task_description": "The task is to design an efficient adapter-based architecture that integrates a pre-trained Large Language Model (LLM) with a visual encoder, enabling multimodal reasoning capabilities specifically for mathematical scenarios involving images. The goal is to empower the LLM to interpret and solve image-associated math problems (e.g., geometry diagrams, algebraic graphs, or statistical charts) through joint vision-language understanding.\n\nKey Components:\n1. **Visual Encoder**: Utilize a pretrained vision model (e.g., SigLip or CLIP) to extract hierarchical image features, focusing on mathematical symbols, spatial relationships, and diagrammatic elements.\n2. **Multimodal Adapter**: Develop a lightweight neural module that:\n   - Projects visual features into the LLM's embedding space\n   - Establishes cross-modal attention mechanisms between visual tokens and text tokens\n   - Preserves mathematical semantics during modality fusion\n3. **LLM Backbone**: Employ a decoder-only LLM (e.g., Qwen) as the cognitive engine for mathematical reasoning.\n\nFunctional Requirements:\n- Process inputs containing both images (PNG/JPEG) and text questions\n- Support varied mathematical tasks: diagram interpretation, formula extraction from figures, and multistep QA requiring visual context\n- Realize sufficient visual language alignment to enable LLM to have accurate and comprehensive visual perception capabilities\n\nTraining Strategy:\n1. **Stage 1 - Feature Alignment**:\n   - Train on math image-caption pairs (e.g., geometry theorems with corresponding diagrams)\n   - Align visual concepts (angles, coordinates) with textual mathematical expressions\n2. **Stage 2 - Instruction Tuning**:\n   - Use curated QA pairs combining images and procedural math questions\n   - Examples: \"Given this parabola graph, find its equation in vertex form\" with step-by-step solutions\n\nEvaluation Metrics:\n- Accuracy on mathematical visual QA benchmarks (e.g., MathVista)",
+
+    "domain": "mathematical vision-language models",
+
+    "background": "### Key Technical Challenges\n\n- **Preserving Spatial Relationships for Geometric Reasoning**\n  Mathematical diagrams (e.g., geometric shapes, coordinate systems) require precise spatial understanding (angles, distances, relative positions). Existing vision encoders often lose fine-grained spatial details due to downsampling or global pooling.\n\n- **Visual-Language Alignment for Comprehensive Perception**  \n  Achieving pixel-to-concept alignment between mathematical symbols (e.g., ∫, ∑) and their linguistic meanings is critical. Challenges include handling **diverse notation styles** and **implicit visual semantics** (e.g., arrow directions in flowcharts). \n\n- **Hallucination Suppression in Formula Generation** \n  Models may generate mathematically invalid expressions due to ambiguous visual inputs (e.g., blurry subscripts) or over-reliance on text patterns. ",
+    
+    "constraints": [
+        "Improvement must focus on the adapter module between LLM and visual encoder",
+        "Any hyperparameter settings related to training (batch size, learning rate, etc.) cannot be modified",
+        "Cannot modify the training data of the model",
+        "Proposals must maintain Qwen2ForCausalLM's core structure and SigLipVisionModel's core structure",
+        "Solutions should be compatible with DeepSpeed distributed training",
+        "No modification of evaluation metrics allowed"
+    ]
+}

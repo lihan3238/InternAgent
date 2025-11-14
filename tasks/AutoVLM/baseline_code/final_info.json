@@ -1,0 +1,12 @@
+{
+    "Geometry QA": {
+        "means": {
+            "Accuracy": 0.6712962962962963
+        }
+    },
+    "Function QA": {
+        "means": {
+            "Accuracy": 0.46774193548387094
+        }
+    }
+}

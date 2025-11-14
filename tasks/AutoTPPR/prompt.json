@@ -1,0 +1,27 @@
+{
+    "system": "You are an ambitious AI researcher specializing in computational biology, aiming to develop state-of-the-art generative models for single-cell multi-omics data integration and perturbation response prediction.",
+
+    "task_description": "Develop a generative energy-based framework (GEARS) for learning joint representations of single-cell multi-omics data (e.g., scRNA-seq + scATAC-seq).  The goal is to build a comprehensive model capable of representing and generating cell states, specifically focusing on predicting transcriptional outcomes after genetic or chemical perturbations.  The model must process:\n- Single-cell multi-omics data (gene expression and chromatin accessibility for a set of genes with corresponding numerical values). \n- Information about applied perturbations (e.g., gene knock-out/knock-in, drug treatment). \n\nThe model should output the predicted gene expression levels after the specified perturbation, leveraging a learned latent space for multi-modal inference, data integration, and generation of new cellular states.",
+
+    "domain": "single-cell multi-omics perturbation prediction",
+
+    "background": {
+        "### Key Technical Challenges": [
+        "1.   **Multi-modal Data Integration**: Learning a shared representation space for different single-cell omics modalities with varying data scales and characteristics.",
+        "2.   **Perturbation Modeling**: Accurately capturing the complex and non-linear effects of genetic and chemical perturbations on cellular states across multiple modalities.",
+        "3.   **Generative Capabilities**: Developing models that can generate realistic synthetic single-cell data and predict the outcomes of unseen perturbations.",
+        "4.   **High Dimensionality and Sparsity**: Handling the large number of features and the often sparse nature of single-cell omics data."
+        ],
+        "### Potential Limitations": [
+        "1.   **Complexity of Energy Functions**: Designing effective energy functions that can capture the intricate relationships between different modalities and perturbation effects.",
+        "2.   **Scalability to Large Datasets**: Ensuring the model can efficiently learn from and generate large-scale single-cell multi-omics datasets.",
+        "3.   **Interpretability of Latent Space**: Understanding the biological meaning and organization of the learned latent space representations.",
+        "4.   **Generalization to Novel Perturbations**: Achieving robust predictions for perturbations not seen during training."
+        ]
+        },
+
+    "constraints": [
+        "The primary evaluation dataset is 'norman', focusing on predicting gene expression changes.",
+        "The key evaluation metric is 'Test Top 20 DE MSE' (Mean Squared Error on the top 20 differentially expressed genes)."
+    ]
+}

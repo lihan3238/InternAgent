@@ -1,0 +1,8 @@
+{
+    "Chemical prediction": {
+        "means": {
+            "loss": 539.104546973615,
+            "r2_score": 0.3018355667591095
+        }
+    }
+}

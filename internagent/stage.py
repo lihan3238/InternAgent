@@ -414,6 +414,13 @@ class ExperimentRunner:
             else:
                 print(f"Warning: Could not copy baseline experiment.py to run_0")
         
+        # Copy plot.py if it exists in base directory复制绘图功能文件
+        # plot_src = osp.join(base_dir, "plot.py")
+        # plot_dst = osp.join(folder_name, "plot.py")
+        # if osp.exists(plot_src) and not osp.exists(plot_dst):
+        #     shutil.copy2(plot_src, plot_dst)
+        #     print(f"Copied plot.py to {plot_dst}")
+        
         # Create notes file
         notes_path = osp.join(folder_name, "notes.txt")
         with open(notes_path, "w") as f:
@@ -470,6 +477,13 @@ class ExperimentRunner:
             
             exp_file = osp.join(folder_name, "experiment.py")
             notes_file = osp.join(folder_name, "notes.txt")
+            plot_file = osp.join(folder_name, "plot.py")
+            
+            # Include plot.py in aider's file list if it exists补充绘图功能文件
+            fnames = [exp_file, notes_file]
+            if osp.exists(plot_file):
+                fnames.append(plot_file)
+                self.logger.info(f"Including plot.py in aider's editable files")
             
             io = InputOutput(
                 yes=True,
@@ -484,7 +498,7 @@ class ExperimentRunner:
             main_model = Model(experiment_model)
             coder = Coder.create(
                 main_model=main_model,
-                fnames=[exp_file, notes_file],
+                fnames=fnames,
                 io=io,
                 stream=True,  # Enable streaming to see aider output
                 use_git=False,

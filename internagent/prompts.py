@@ -11,8 +11,16 @@ For reference, the baseline results are as follows:
 
 {baseline_results}
 
-Then, you need to implement code based on your plan. After you complete each change, we will run the command `python experiment.py --out_dir=run_i' where i is the run number and evaluate the results.
-YOUR PROPOSED CHANGE MUST USE THIS COMMAND FORMAT, DO NOT ADD ADDITIONAL COMMAND LINE ARGS.
+Then, you need to implement code based on your plan. After you complete each change, we will run the command `bash launcher.sh run_i` where i is the run number. This command will:
+1. Run `experiment.py` to execute the experiment
+2. Automatically run `plot.py` to generate visualizations if the experiment succeeds
+
+**Important**: You can modify both `experiment.py` and `plot.py` files:
+- `experiment.py`: Contains the main experiment logic, model training, and evaluation
+- `plot.py`: Contains visualization code that reads results from `experiment.py` and generates plots
+- Both files are available for editing, and `plot.py` will be automatically executed after successful experiments
+
+YOUR PROPOSED CHANGE MUST USE THIS COMMAND FORMAT (`bash launcher.sh run_i`), DO NOT ADD ADDITIONAL COMMAND LINE ARGS.
 You can then implement the next thing on your list.
 
 Any modifications to `argparse` parameters (new/updated) **must enforce the improved implementation as the default behavior** unless explicitly designed as optional. Specifically:  Set `default=<revised_value>` for all altered arguments to ensure the enhanced logic activates automatically without CLI flags. Ensure the improved functionality should be the default experience without requiring users to specify additional command-line parameters.
