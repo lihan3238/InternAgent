@@ -415,11 +415,11 @@ class ExperimentRunner:
                 print(f"Warning: Could not copy baseline experiment.py to run_0")
         
         # Copy plot.py if it exists in base directory复制绘图功能文件
-        # plot_src = osp.join(base_dir, "plot.py")
-        # plot_dst = osp.join(folder_name, "plot.py")
-        # if osp.exists(plot_src) and not osp.exists(plot_dst):
-        #     shutil.copy2(plot_src, plot_dst)
-        #     print(f"Copied plot.py to {plot_dst}")
+        plot_src = osp.join(base_dir, "plot.py")
+        plot_dst = osp.join(folder_name, "plot.py")
+        if osp.exists(plot_src) and not osp.exists(plot_dst):
+            shutil.copy2(plot_src, plot_dst)
+            print(f"Copied plot.py to {plot_dst}")
         
         # Create notes file
         notes_path = osp.join(folder_name, "notes.txt")

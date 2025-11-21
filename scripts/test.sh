@@ -1,0 +1,1 @@
+python -m internagent.mas.agents.paper_generation_agent

@@ -12,6 +12,10 @@ from json_repair import repair_json
 
 import openai
 from openai import AsyncOpenAI
+try:
+    from openai import APIStatusError, APITimeoutError, RateLimitError
+except ImportError:  # Older SDK versions may not expose these types
+    APIStatusError = APITimeoutError = RateLimitError = Exception
 
 from .base_model import BaseModel
 
@@ -87,6 +91,16 @@ class OpenAIModel(BaseModel):
         temperature = temperature if temperature is not None else self.temperature
         max_tokens = max_tokens if max_tokens is not None else self.max_tokens
         
+        request_meta = {
+            "model": self.model_name,
+            "base_url": self.base_url,
+            "system_prompt_chars": len(system_prompt or ""),
+            "prompt_chars": len(prompt or ""),
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "extra_keys": list(kwargs.keys()),
+        }
+
         try:
             response = await self.client.chat.completions.create(
                 model=self.model_name,
@@ -97,8 +111,21 @@ class OpenAIModel(BaseModel):
                 **kwargs
             )
             return response.choices[0].message.content
+        except (APITimeoutError, APIStatusError, RateLimitError) as api_exc:
+            logger.error(
+                "OpenAI chat request failed (API error) | meta=%s | details=%s",
+                request_meta,
+                api_exc,
+                exc_info=True,
+            )
+            raise
         except Exception as e:
-            logger.error(f"Error generating response from OpenAI: {e}")
+            logger.error(
+                "OpenAI chat request failed (unexpected) | meta=%s | details=%s",
+                request_meta,
+                e,
+                exc_info=True,
+            )
             raise
     
     async def generate_with_json_output(self, 
@@ -125,6 +152,17 @@ class OpenAIModel(BaseModel):
             enhanced_system_prompt = f"{system_prompt}\n\nRespond with JSON that matches this schema: {json.dumps(json_schema)}"
         else:
             enhanced_system_prompt = f"Respond with JSON that matches this schema: {json.dumps(json_schema)}"
+
+        request_meta = {
+            "model": self.model_name,
+            "base_url": self.base_url,
+            "system_prompt_chars": len(enhanced_system_prompt or ""),
+            "prompt_chars": len(prompt or ""),
+            "temperature": temperature if temperature is not None else self.temperature,
+            "response_format": "json_object",
+            "schema_keys": list(json_schema.keys()),
+            "extra_keys": list(kwargs.keys()),
+        }
 
         try:
             response = await self.client.chat.completions.create(
@@ -158,8 +196,21 @@ class OpenAIModel(BaseModel):
         except json.JSONDecodeError as e:
             logger.error(f"Failed to decode JSON response: {e}")
             raise ValueError(f"Model did not return valid JSON: {e}")
+        except (APITimeoutError, APIStatusError, RateLimitError) as api_exc:
+            logger.error(
+                "OpenAI JSON chat request failed (API error) | meta=%s | details=%s",
+                request_meta,
+                api_exc,
+                exc_info=True,
+            )
+            raise
         except Exception as e:
-            logger.error(f"Error generating JSON response from OpenAI: {e}")
+            logger.error(
+                "OpenAI JSON chat request failed (unexpected) | meta=%s | details=%s",
+                request_meta,
+                e,
+                exc_info=True,
+            )
             raise
     
     async def generate_json(self, 

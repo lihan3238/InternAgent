@@ -13,6 +13,7 @@ import yaml
 import shutil
 import copy
 from datetime import datetime
+from typing import List, Set
 from dotenv import load_dotenv
 
 # Import MAS components
@@ -21,6 +22,46 @@ from internagent.mas.agents.agent_factory import AgentFactory
 from internagent.mas.models.model_factory import ModelFactory
 
 load_dotenv()
+
+
+def _has_run_subdirs(path: str) -> bool:
+    """Return True if a directory contains at least one run_* subfolder."""
+    try:
+        for entry in os.listdir(path):
+            full = osp.join(path, entry)
+            if entry.startswith('run_') and osp.isdir(full):
+                return True
+    except Exception:
+        return False
+    return False
+
+
+def _discover_idea_result_dirs(iteration_root: str) -> List[str]:
+    """Detect experiment folders that contain run_* artifacts under a root directory."""
+    if not iteration_root or not osp.isdir(iteration_root):
+        return []
+
+    discovered: List[str] = []
+    seen: Set[str] = set()
+
+    def _record(path: str):
+        norm = osp.normpath(path)
+        if norm not in seen:
+            seen.add(norm)
+            discovered.append(path)
+
+    if _has_run_subdirs(iteration_root):
+        _record(iteration_root)
+
+    try:
+        for entry in os.listdir(iteration_root):
+            child = osp.join(iteration_root, entry)
+            if osp.isdir(child) and _has_run_subdirs(child):
+                _record(child)
+    except Exception:
+        pass
+
+    return discovered
 
 # ============================================================================
 # Logging Configuration
@@ -224,7 +265,9 @@ def generate_summary_artifacts(
     current_output_dir,
     root_output_dir,
     iteration_label,
+    idea_result_dirs=None,
 ):
+    idea_result_dirs = list(idea_result_dirs or [])
     try:
         task_meta = {}
         prompt_json_path = osp.join(args.task_dir, "prompt.json")
@@ -323,6 +366,140 @@ def generate_summary_artifacts(
             mf.write(agent_output.get('summary_markdown', ''))
 
         logger.info(f"Summary artifacts saved to {summary_llm_json} and {summary_md}")
+        # Human-in-the-loop decision: should we generate a paper draft from this summary?人机交互生成论文
+        pending_decision_path = osp.join(current_output_dir, f"pending_paper_decision_{iteration_suffix}.json")
+        pending_payload = {
+            "task": args.task_name,
+            "iteration": iteration_label,
+            "summary_path": osp.join(current_output_dir, f"experiment_summary_{iteration_suffix}.llm.json"),
+        }
+        # Always write pending file so non-interactive runs have an artifact to review later
+        try:
+            with open(pending_decision_path, 'w', encoding='utf-8') as pf:
+                json.dump(pending_payload, pf, ensure_ascii=False, indent=2)
+        except Exception:
+            logger.warning(f"Could not write pending paper decision to {pending_decision_path}")
+
+        # Prompt user (TTY). If no TTY or non-interactive, leave the pending file for offline review.
+        try:
+            import sys
+
+            if sys.stdin and sys.stdin.isatty():
+                resp = input("Generate paper draft from this summary? (y/N): ")
+                if resp.lower().strip() in ("y", "yes"):
+                    # Instantiate paper generation agent and run it
+                    # Build paper agent config (allow per-agent overrides in config)
+                    paper_agent_cfg = (config.get('agents', {}).get('paper_generation', {}) if isinstance(config, dict) else {})
+                    merged_paper_cfg = dict(paper_agent_cfg)
+                    merged_paper_cfg['_global_config'] = config if isinstance(config, dict) else {}
+
+                    agent = AgentFactory.create_agent("paper_generation", merged_paper_cfg, ModelFactory())
+
+                    # Prepare params: pass output dir, iteration, and model hints
+                    small_model_cfg = None
+                    big_model_cfg = None
+                    vlm_model_cfg = None
+                    try:
+                        small_model_cfg = paper_agent_cfg.get('small_model') if isinstance(paper_agent_cfg, dict) else None
+                    except Exception:
+                        small_model_cfg = None
+                    try:
+                        big_model_cfg = paper_agent_cfg.get('big_model') if isinstance(paper_agent_cfg, dict) else None
+                    except Exception:
+                        big_model_cfg = None
+                    try:
+                        vlm_model_cfg = paper_agent_cfg.get('vlm_model') if isinstance(paper_agent_cfg, dict) else None
+                    except Exception:
+                        vlm_model_cfg = None
+
+                    # Fallback for big_model
+                    if not big_model_cfg:
+                        big_model_cfg = config.get('experiment', {}).get('model') if isinstance(config, dict) else None
+
+                    # instantiate vlm model object if config provided
+                    vlm_model_obj = None
+                    try:
+                        if isinstance(vlm_model_cfg, dict):
+                            vlm_model_obj = ModelFactory.create_model(vlm_model_cfg)
+                    except Exception as e:
+                        logger.warning(f"Failed to create VLM model from config: {e}")
+                        vlm_model_obj = None
+
+                    # Build a short abstract from the summary for the paper agent
+                    summary_text = agent_output.get('summary_markdown') if isinstance(agent_output, dict) else ''
+                    short_abstract = ''
+                    if summary_text:
+                        short_abstract = summary_text.split('\n\n')[0][:800]
+
+                    params_for_paper = {
+                        'root_output_dir': current_output_dir,
+                        'iteration': iteration_label,
+                        'task_name': args.task_name,
+                        'small_model': small_model_cfg,
+                        'big_model': big_model_cfg,
+                        'vlm_model': vlm_model_obj,
+                        'abstract': short_abstract,
+                        'title': task_meta.get('task_name') or args.task_name,
+                    }
+
+                    resolved_dirs = [d for d in idea_result_dirs if d and osp.exists(d)]
+                    if resolved_dirs:
+                        params_for_paper['idea_result_dirs'] = resolved_dirs
+                    else:
+                        detected_dirs = _discover_idea_result_dirs(current_output_dir)
+                        if detected_dirs:
+                            params_for_paper['idea_result_dirs'] = detected_dirs
+                        else:
+                            logger.warning(
+                                "Unable to auto-detect run_* directories under %s; fallback to defaults",
+                                current_output_dir,
+                            )
+
+                    try:
+                        paper_output = asyncio.run(agent.execute(context_for_agent, params_for_paper))
+                    except Exception as e:
+                        logger.warning(f"Paper generation agent failed: {e}")
+                        paper_output = None
+
+                    if paper_output:
+                        # write outputs
+                        paper_json_path = osp.join(current_output_dir, f"paper_proposal_{iteration_suffix}.json")
+                        try:
+                            with open(paper_json_path, 'w', encoding='utf-8') as jf:
+                                json.dump(paper_output, jf, ensure_ascii=False, indent=2)
+                        except Exception:
+                            logger.warning(f"Failed to write paper proposal JSON to {paper_json_path}")
+
+                        if isinstance(paper_output, dict):
+                            # write outline / markdown if present
+                            if paper_output.get("outline_md"):
+                                paper_md_path = osp.join(current_output_dir, f"paper_proposal_{iteration_suffix}.md")
+                                try:
+                                    with open(paper_md_path, 'w', encoding='utf-8') as mf:
+                                        mf.write(paper_output.get("outline_md"))
+                                except Exception:
+                                    logger.warning(f"Failed to write paper proposal MD to {paper_md_path}")
+
+                            # Save compiled PDF if agent produced one
+                            pdf_path = paper_output.get('pdf_path')
+                            if pdf_path and osp.exists(pdf_path):
+                                try:
+                                    dest_pdf = osp.join(current_output_dir, f"paper_proposal_{iteration_suffix}.pdf")
+                                    shutil.copy2(pdf_path, dest_pdf)
+                                    logger.info(f"Saved paper PDF to {dest_pdf}")
+                                except Exception:
+                                    logger.warning(f"Failed to copy paper PDF from {pdf_path}")
+
+                        print("Paper proposal generated and saved.")
+                    else:
+                        print("Paper generation failed; see logs. Pending decision saved.")
+                else:
+                    print("Skipped paper generation. Pending decision saved.")
+            else:
+                print("Non-interactive session: pending paper decision written for later review.")
+        except Exception:
+            # Fail safely: leave pending decision for offline processing
+            print("Could not prompt for paper generation; pending decision written.")##论文人机交互结束
     except Exception as e:
         logger.warning(f"Experiment summary agent failed: {e}")
 
@@ -400,6 +577,7 @@ def main():
             current_output_dir=root_output_dir,
             root_output_dir=root_output_dir,
             iteration_label="manual",
+            idea_result_dirs=_discover_idea_result_dirs(root_output_dir),
         )
         return
 
@@ -426,6 +604,9 @@ def main():
     canonical_ideas_path = args.idea_path if args.skip_idea_generation and args.idea_path else None
     canonical_session_json = None
     base_skip_flag = args.skip_idea_generation
+    tracked_idea_dirs: List[str] = []
+    canonical_ideas_full_path = None
+    canonical_idea_params_path = None
 
     while True:
         if args.iterative:
@@ -444,6 +625,9 @@ def main():
 
         session_json = None
         top_ideas = []
+        idea_meta_path = None
+        ideas_output_path = None
+        ideas_full_output = None
 
         if active_skip:
             idea_source = args.idea_path if base_skip_flag and iteration == 1 else canonical_ideas_path
@@ -461,6 +645,24 @@ def main():
                 top_ideas = ideas_data.get('ideas', []) if isinstance(ideas_data, dict) else []
             logger.info(f"Loaded {len(top_ideas)} ideas from {idea_source}")
             session_json = canonical_session_json or idea_source
+            ideas_output_path = idea_source
+
+            prior_dir = osp.dirname(idea_source)
+            prior_full = osp.join(prior_dir, "ideas_full.json")
+            if osp.exists(prior_full):
+                ideas_full_output = osp.join(current_output_dir, "ideas_full.json")
+                try:
+                    shutil.copy2(prior_full, ideas_full_output)
+                except Exception:
+                    ideas_full_output = prior_full
+
+            prior_meta = osp.join(prior_dir, "idea_generation_params.json")
+            if osp.exists(prior_meta):
+                idea_meta_path = osp.join(current_output_dir, "idea_generation_params.json")
+                try:
+                    shutil.copy2(prior_meta, idea_meta_path)
+                except Exception:
+                    idea_meta_path = prior_meta
         else:
             logger.info("Starting idea generation with MAS...")
             idea_generator = IdeaGenerator(args, logger)
@@ -478,10 +680,44 @@ def main():
             with open(ideas_output, 'w') as f:
                 json.dump(aligned_ideas, f, indent=4)
             logger.info(f"Ideas saved to {ideas_output}")
+            ideas_output_path = ideas_output
+
+            full_ideas_output = osp.join(current_output_dir, "ideas_full.json")
+            try:
+                with open(full_ideas_output, 'w', encoding='utf-8') as ff:
+                    json.dump(top_ideas, ff, ensure_ascii=False, indent=2)
+                logger.info(f"Full idea payload saved to {full_ideas_output}")
+                ideas_full_output = full_ideas_output
+            except Exception as e:
+                logger.warning(f"Failed to save full idea payload: {e}")
+
+            generation_cfg = (config.get('agents', {}).get('generation', {}) if isinstance(config, dict) else {})
+            idea_meta_payload = {
+                'task': args.task_name,
+                'session_id': getattr(idea_generator, 'session_id', None),
+                'timestamp': datetime.now().isoformat(),
+                'generator_config': generation_cfg,
+                'idea_count': len(top_ideas),
+                'ideas_file': ideas_output,
+                'ideas_full_file': ideas_full_output,
+            }
+            idea_meta_path = osp.join(current_output_dir, "idea_generation_params.json")
+            try:
+                with open(idea_meta_path, 'w', encoding='utf-8') as mf:
+                    json.dump(idea_meta_payload, mf, ensure_ascii=False, indent=2)
+                logger.info(f"Idea generation parameters saved to {idea_meta_path}")
+            except Exception as e:
+                logger.warning(f"Failed to write idea generation metadata: {e}")
 
             if args.iterative:
                 canonical_ideas_path = canonical_ideas_path or osp.join(root_output_dir, "ideas_canonical.json")
                 shutil.copy2(ideas_output, canonical_ideas_path)
+                if ideas_full_output and osp.exists(ideas_full_output):
+                    canonical_ideas_full_path = canonical_ideas_full_path or osp.join(root_output_dir, "ideas_full_canonical.json")
+                    shutil.copy2(ideas_full_output, canonical_ideas_full_path)
+                if idea_meta_path and osp.exists(idea_meta_path):
+                    canonical_idea_params_path = canonical_idea_params_path or osp.join(root_output_dir, "idea_generation_params_canonical.json")
+                    shutil.copy2(idea_meta_path, canonical_idea_params_path)
             if not canonical_session_json and session_json:
                 canonical_session_json = session_json
 
@@ -500,6 +736,17 @@ def main():
             import traceback
             traceback.print_exc()
             sys.exit(1)
+
+        new_artifact_dirs = []
+        for entry in iteration_results:
+            art_dir = entry.get('artifact_dir')
+            if art_dir and osp.exists(art_dir):
+                abs_dir = osp.abspath(art_dir)
+                new_artifact_dirs.append(abs_dir)
+        for path in new_artifact_dirs:
+            if path not in tracked_idea_dirs:
+                tracked_idea_dirs.append(path)
+        iteration_idea_dirs = list(new_artifact_dirs) if new_artifact_dirs else list(tracked_idea_dirs)
 
         aggregated_results = merge_results(aggregated_results, iteration_results, iteration) if args.iterative else iteration_results
         summary_results_input = aggregated_results if args.iterative else iteration_results
@@ -528,6 +775,9 @@ def main():
             'output_dir': current_output_dir,
             'ideas_source': session_json if not active_skip else (args.idea_path or canonical_ideas_path),
             'skip_idea_generation': active_skip,
+            'ideas_file': ideas_output_path,
+            'ideas_full_file': ideas_full_output,
+            'idea_generation_metadata': idea_meta_path,
             'model': (
                 config.get("experiment", {}).get("model") or
                 "anthropic/claude-3-7-sonnet-20250219"
@@ -566,6 +816,7 @@ def main():
             current_output_dir,
             root_output_dir,
             iteration,
+            idea_result_dirs=iteration_idea_dirs,
         )
 
         if not args.iterative:

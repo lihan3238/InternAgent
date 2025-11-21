@@ -117,3 +117,27 @@ Produce a JSON object that satisfies the provided schema and the following quali
 
 Return only the JSON response that conforms to the schema.
 """
+
+
+# Prompt specialized for debugging plot.py failures. Used when the harness detects a plotting error
+# and has produced a `plot_debug.log` (wrapper) with import/stack traces and helper outputs.
+PLOT_DEBUG_PROMPT = """You are an expert developer who debugs visualization scripts. The user's experiment completed successfully but the plotting step failed.
+
+Context (error summary):
+{error_messages}
+
+Debug helper output (from plot_debug.log or wrapper):
+{code_structure}
+
+Requirements for the fix:
+- The visualization script is `plot.py` located in the experiment folder. Do NOT change `experiment.py`.
+- `plot.py` must accept a single argument `--out_dir` with default `'.'` and use only relative paths under that directory to read experiment outputs.
+- Implement or fix a function `load_plot_data(out_dir)` that returns a tuple `(predictions, targets, pred_length, seq_length)` or clearly document and support the format `plot.py` should accept; be robust to missing files and give clear error messages.
+- Avoid heavy external dependencies; prefer standard libraries (json, csv, numpy) and write defensive checks for file existence and shapes.
+
+Task:
+1) Analyze the debug output and identify minimal code changes to make `plot.py` load experiment outputs and produce plots.
+2) Return a patch (unified diff or full file content) that updates `plot.py`. If unsure, return precise code snippets and instructions to apply.
+
+Only output the patch or suggested code to fix `plot.py`.
+"""

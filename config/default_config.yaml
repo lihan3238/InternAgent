@@ -67,10 +67,50 @@ agents:
     model_provider: "default"
     temperature: 0.3
 
+  # Paper Generation Agent (example configuration)
+  paper_generation:
+    # Template directory for LaTeX files (relative or absolute). If not present,
+    # agent will fall back to a minimal template. By default we use the repo's
+    # `blank_icml_latex` folder.
+    template_dir: "./blank_icml_latex"
+
+    # Small model: used for citation query planning and selection (cheap)
+    small_model:
+      provider: "openai"
+      model_name: "gpt-4o-mini"
+      temperature: 0.7
+      max_tokens: 2048
+
+    # Big model: used for initial draft and iterative refinement (higher quality)
+    big_model:
+      provider: "openai"
+      model_name: "gpt-4o-mini"
+      temperature: 0.7
+      max_tokens: 9216
+
+    # VLM model can be provided as a model-config or injected at runtime via params
+    # Example VLM configuration: use a multimodal model for figure analysis
+    # Set to null to disable.
+    vlm_model:
+      provider: "openai"
+      model_name: "gpt-4o-mini"
+      temperature: 0.7
+      max_tokens: 2048
+
+    # Citation collection rounds and writeup iterations
+    num_cite_rounds: 3
+    n_writeup_reflections: 4
+
+    # LaTeX compile timeout (seconds)
+    compile_timeout: 60
+
+    # Page limit used as guidance during generation
+    page_limit: 12
+
 # Workflow Configuration
 workflow:
   max_iterations: 2
-  top_ideas_count: 3
+  top_ideas_count: 2
   top_ideas_evo: false
   max_concurrent_tasks: 5
   human_in_the_loop: true

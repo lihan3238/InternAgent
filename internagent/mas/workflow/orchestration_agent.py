@@ -75,7 +75,7 @@ class OrchestrationAgent:
         # Load workflow configuration
         workflow_config = config.get("workflow", {})
         self.max_iterations = workflow_config.get("max_iterations", 2)
-        self.top_ideas_count = workflow_config.get("top_ideas_count", 3)
+        self.top_ideas_count = workflow_config.get("top_ideas_count", 2)
         self.top_ideas_evo = workflow_config.get("top_ideas_evo", False)
         self.max_concurrent_tasks = workflow_config.get("max_concurrent_tasks", 5)
 

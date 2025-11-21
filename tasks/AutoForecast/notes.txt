@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Name: Enhanced Hybrid Weather-Aware Attention Forecasting (EHWAF)
 # Title: Enhanced Hybrid Attention Mechanism for Weather-Responsive Building Energy Consumption Forecasting
 # Description: The Enhanced Hybrid Weather-Aware Attention Forecasting (EHWAF) method introduces a refined hybrid attention mechanism that explicitly integrates weather conditions with spatial and temporal dynamics in building energy consumption forecasting. Leveraging a transformer architecture, EHWAF aims to improve forecasting accuracy by providing a statistically significant enhancement over traditional models, focusing particularly on variable weather patterns. This method emphasizes clear mathematical formulations and detailed algorithmic specifications for practical implementation.
@@ -65,7 +64,7 @@ FUNCTION EHWAF_Forecast(X, sequence_length, prediction_length)
 ### Implementation Feasibility
 EHWAF can be implemented using frameworks like PyTorch or TensorFlow. The method's modular design allows easy adjustments to attention mechanisms and transformer configurations. Well-defined data flow ensures clarity in implementation, and the reliance on established deep learning principles facilitates efficient computation.
 ## Run 0: Baseline
-=======
+
 # Name: Enhanced Hybrid Weather-Aware Attention Forecasting (EHWAF)
 # Title: Enhanced Hybrid Attention Mechanism for Weather-Responsive Building Energy Consumption Forecasting
 # Description: The Enhanced Hybrid Weather-Aware Attention Forecasting (EHWAF) method introduces a refined hybrid attention mechanism that explicitly integrates weather conditions with spatial and temporal dynamics in building energy consumption forecasting. Leveraging a transformer architecture, EHWAF aims to improve forecasting accuracy by providing a statistically significant enhancement over traditional models, focusing particularly on variable weather patterns. This method emphasizes clear mathematical formulations and detailed algorithmic specifications for practical implementation.
@@ -132,4 +131,3 @@ FUNCTION EHWAF_Forecast(X, sequence_length, prediction_length)
 ### Implementation Feasibility
 EHWAF can be implemented using frameworks like PyTorch or TensorFlow. The method's modular design allows easy adjustments to attention mechanisms and transformer configurations. Well-defined data flow ensures clarity in implementation, and the reliance on established deep learning principles facilitates efficient computation.
 ## Run 0: Baseline
->>>>>>> ssy
