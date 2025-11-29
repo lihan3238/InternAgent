@@ -1,0 +1,105 @@
+# Debug configuration for InternAgent - Fast pipeline execution
+# This config is optimized for quick testing with minimal iterations and agents
+
+system:
+  debug: true
+  log_level: "INFO"  # Less verbose than DEBUG for faster execution
+
+workflow:
+  max_iterations: 1  # Minimal iterations for fast testing
+  top_ideas_count: 2  # Only test 2 top ideas
+  top_ideas_evo: False  # Skip evolution for speed
+  max_concurrent_tasks: 2  # Reduced concurrent tasks for debug
+
+# Model configuration - use faster models
+models:
+  default_provider: "openai"
+
+  dsr1:
+    model_name: "DeepSeek-R1"
+    api_key: "" # Set via environment variable DS_API_KEY
+    max_tokens: 1024  # Reduced for faster generation
+    temperature: 0.3  # Lower temperature for more deterministic results
+
+  openai:
+    model_name: "gpt-4o-mini"  # Use mini model for faster responses
+    api_key: ""  # Set via environment variable OPENAI_API_KEY
+    max_tokens: 1024  # Reduced for faster generation
+    temperature: 0.3  # Lower temperature for speed
+
+agents:
+  generation:
+    do_survey: False  # Skip survey for speed
+    count: 1  # Single agent
+    model_provider: "default"
+    temperature: 0.5  # Reduced creativity for speed
+    creativity: 0.5   # Lower creativity
+    generation_count: 3  # Generate only 3 ideas instead of 15
+
+  survey:
+    max_papers: 5  # Drastically reduced for speed
+
+  reflection:
+    count: 1  # Single reflection agent
+    model_provider: "default"
+
+  ranking:
+    count: 1
+    model_provider: "default"
+    criteria:
+      novelty: 0.3
+      plausibility: 0.4
+      testability: 0.2
+      alignment: 0.1
+    strategy: "simple"  # Use simpler ranking strategy
+
+  evolution:
+    count: 1
+    model_provider: "default"
+    evolution_count: 1  # Minimal evolution
+    temperature: 0.5
+
+  method_development:
+    count: 1
+    model_provider: "default"
+
+  refinement:
+    count: 1
+    model_provider: "default"
+
+  scholar:
+    count: 1
+    model_provider: "default"
+    max_papers: 3  # Minimal paper search
+    temperature: 0.5
+    search_depth: "minimal"  # Fastest search
+    similarity_threshold: 0.9  # Higher threshold for fewer results
+    deep_read: False
+
+# Memory configuration
+memory:
+  backend: "file_system"
+  file_dir: "results"
+  retention_period: 1  # Short retention for debug
+
+# Tool configuration - minimal external calls
+tools:
+  web_search:
+    enabled: false  # Disable web search for speed
+    provider: "google"
+    api_key: ""
+    max_results: 3  # Minimal results
+
+  literature_search:
+    api_keys:
+      semantic_scholar: ""
+
+  paper_survey:
+    max_results: 3  # Minimal results for speed
+    sort: "relevance"
+
+# Placeholder for custom tools (not currently implemented)
+# custom_tool_template:
+#   enabled: false
+#   api_endpoint: ""
+#   api_key: ""

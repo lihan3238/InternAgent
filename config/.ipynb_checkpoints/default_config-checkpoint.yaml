@@ -1,0 +1,111 @@
+# Default configuration for InternAgent
+# This file is loaded when no specific config path is provided
+
+version: "1.0.0"
+
+# Model Providers Configuration
+models:
+  default_provider: "openai"
+
+  openai:
+    model_name: "gpt-4o-mini"
+    api_key: ""  # Set via environment variable OPENAI_API_KEY
+    max_tokens: 4096
+    temperature: 0.7
+
+experiment:
+  model: "anthropic/Qwen/Qwen3-Coder-30B-A3B-Instruct"  # Experiment model used for idea generation and evaluation
+# Memory Configuration
+memory:
+  backend: "file_system"
+  file_dir: "results"
+
+# Agent Configuration
+agents:
+  # Idea Generation Agent
+  generation:
+    model_provider: "default"
+    generation_count: 5
+    creativity: 0.7
+    do_survey: false
+
+  # Reflection Agent
+  reflection:
+    model_provider: "default"
+    detail_level: "medium"
+
+  # Evolution Agent
+  evolution:
+    model_provider: "default"
+    creativity_level: 0.6
+
+  # Method Development Agent
+  method_development:
+    model_provider: "openai"
+    model_name: "gpt-4"
+
+  # Refinement Agent
+  refinement:
+    model_provider: "openai"
+    model_name: "gpt-4"
+
+  # Ranking Agent
+  ranking:
+    model_provider: "default"
+
+  # Scholar Agent
+  scholar:
+    model_provider: "default"
+    search_depth: "moderate"
+
+  # Survey Agent
+  survey:
+    model_provider: "default"
+
+  # Experiment Summary Agent
+  experiment_summary:
+    model_provider: "default"
+    temperature: 0.3
+
+  # Paper Generation Agent
+  paper_generation:
+    template_dir: "./blank_icml_latex"
+    model_provider: "openai"
+    num_cite_rounds: 3
+    n_writeup_reflections: 4
+    page_limit: 12
+    compile_timeout: 60
+    big_model:
+      provider: "openai"
+      model_name: "gpt-4o-mini"
+      temperature: 0.7
+      max_tokens: 9216
+    small_model:
+      provider: "openai"
+      model_name: "gpt-4o-mini"
+      temperature: 0.7
+      max_tokens: 2048
+    vlm_model:
+      provider: "openai"
+      model_name: "gpt-4o-mini"
+      temperature: 0.7
+      max_tokens: 2048
+    
+# Workflow Configuration
+workflow:
+  max_iterations: 2
+  top_ideas_count: 2
+  top_ideas_evo: false
+  max_concurrent_tasks: 5
+  human_in_the_loop: true
+
+# Experiment storage & RAG/dedup configuration
+store:
+  backend: "json"          # json | mongo (mongo not implemented in this code drop)
+  root_dir: "results"      # base directory for experiment artifacts
+  experiments_subdir: "experiments"  # where meta.json files live
+  similar_top_k: 3         # how many similar experiments to retrieve for context
+
+idea_reuse:
+  mode: "improve"          # off | reference | improve | exploit_only
+  explore_ratio: 0.3       # fraction of ideas that can be fresh exploration when mode != exploit_only
